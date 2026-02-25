@@ -1,0 +1,17 @@
+#!/bin/bash
+# Survivor Auction — Double-click launcher (no Terminal window)
+APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$APP_DIR"
+
+# Include common Python paths (Homebrew, etc.) when launching from Finder
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Start server in background (no visible Terminal)
+nohup python3 app.py >> /tmp/survivor-auction.log 2>&1 &
+SERVER_PID=$!
+
+# Wait for server to be ready
+sleep 3
+
+# Open browser
+open "http://localhost:5001"

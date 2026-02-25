@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host — Survivor Auction</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="container host-view play-view">
+    <header>
+      <h1>Survivor Auction</h1>
+      <p class="tagline">Host view — Game {{ game_id }}</p>
+    </header>
+
+    <div id="app">
+      <div id="lobby" class="card hidden">
+        <h2>Lobby</h2>
+        <p class="join-url">Game code: <strong id="game-code"></strong></p>
+        <p class="hint">Share this code with players. They enter it on the main page.</p>
+        <ul id="player-list"></ul>
+        <p id="start-hint" class="hint">Need at least 2 players to start</p>
+        <p id="lobby-error" class="error hidden"></p>
+        <button id="btn-start" type="button" class="btn-primary" disabled>Start Game</button>
+      </div>
+
+      <div id="round" class="card hidden">
+        <h2>Round <span id="round-num"></span><span id="host-rounds-range" class="rounds-range"></span></h2>
+        <div id="current-item" class="item-card">
+          <span class="item-name" id="item-name"></span>
+          <p id="timer" class="timer"></p>
+          <p id="current-bid" class="hint"></p>
+        </div>
+        <div id="host-bid" class="host-bid-form hidden">
+          <p class="bankroll">Your bankroll: <strong id="host-bankroll">—</strong></p>
+          <p id="host-bid-error" class="error hidden"></p>
+          <div class="action-option">
+            <h4>Place a bid</h4>
+            <p class="hint">Must beat current bid. To sit out, just don't bid.</p>
+            <div class="field">
+              <label for="host-bid-amount">Your bid ($)</label>
+              <input type="number" id="host-bid-amount" min="0" step="1" placeholder="0">
+            </div>
+            <div class="field bid-slider-wrap">
+              <input type="range" id="host-bid-slider" min="0" max="100" step="1" value="25">
+            </div>
+            <button id="host-bid-submit" class="btn-primary">Bid</button>
+          </div>
+        </div>
+        <div class="host-actions">
+          <button id="btn-next" class="btn-primary hidden">Next Round</button>
+        </div>
+      </div>
+
+      <div id="reveal" class="card hidden">
+        <h2>Result</h2>
+        <div class="reveal-card">
+          <span class="item-name" id="reveal-item-name"></span>
+          <p id="winner-text"></p>
+        </div>
+        <p id="host-error" class="error hidden"></p>
+        <button id="btn-next-round" class="btn-primary">Next Round</button>
+      </div>
+
+      <div id="voting" class="card hidden">
+        <h2>Voting Phase</h2>
+        <p class="status"><span id="votes-count">0</span>/<span id="players-count">0</span> players have voted.</p>
+        <p class="hint">Rank everyone from best to worst auction performance.</p>
+        <p id="host-vote-error" class="error hidden"></p>
+        <div id="host-vote-list"></div>
+        <button id="host-btn-submit-vote" type="button" class="btn-primary hidden">Submit Rankings</button>
+      </div>
+
+      <div id="ended" class="card hidden">
+        <h2>Game Over!</h2>
+        <ul id="leaderboard"></ul>
+        <h3>Your haul</h3>
+        <ul id="my-collection"></ul>
+      </div>
+    </div>
+    <aside class="leaderboard-mini">
+      <p class="bankroll">Your bankroll: <strong id="host-my-bankroll">—</strong></p>
+      <h3 id="host-standings-title">Items Won</h3>
+      <ul id="host-standings"></ul>
+    </aside>
+  </main>
+  <script>
+    const GAME_ID = "{{ game_id }}";
+    const HOST_PLAYER_ID = "{{ host_player_id or '' }}";
+    const API = `/api/game/${GAME_ID}`;
+
+    const lobby = document.getElementById("lobby");
+    const round = document.getElementById("round");
+    const reveal = document.getElementById("reveal");
+    const voting = document.getElementById("voting");
+    const ended = document.getElementById("ended");
+
+    function show(el) { el.classList.remove("hidden"); }
+    function hide(el) { el.classList.add("hidden"); }
+
+    async function fetchState() {
+      const url = HOST_PLAYER_ID ? `${API}/state?player_id=${HOST_PLAYER_ID}` : `${API}/state`;
+      const r = await fetch(url);
+      return r.json();
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    let lastHostBidKey = "";
+    function render(state) {
+      document.getElementById("game-code").textContent = GAME_ID;
+
+      if (state.phase === "lobby") {
+        show(lobby); hide(round); hide(reveal); hide(voting); hide(ended);
+        document.getElementById("player-list").innerHTML = state.players
+          .map(p => `<li>${escapeHtml(p.name)}</li>`).join("");
+        const canStart = state.players.length >= 2;
+        document.getElementById("btn-start").disabled = !canStart;
+        const n = state.players.length;
+        const rMin = n * 2, rMax = n * 5;
+        document.getElementById("start-hint").textContent = canStart
+          ? `${state.players.length} players ready — click to start (${rMin}–${rMax} rounds)`
+          : `Need at least 2 players to start (${state.players.length}/2). Game will have ${rMin}–${rMax} rounds.`;
+      } else if (state.phase === "play") {
+        hide(lobby); show(round); hide(reveal); hide(voting); hide(ended);
+
+        const minR = state.rounds_min ?? 0;
+        const maxR = state.rounds_max ?? 0;
+        document.getElementById("round-num").textContent = state.current_round + 1;
+        document.getElementById("host-rounds-range").textContent = minR && maxR ? ` (of ${minR}–${maxR})` : "";
+        document.getElementById("item-name").textContent = state.current_item?.name || "—";
+
+        const timerEl = document.getElementById("timer");
+        const secs = state.seconds_remaining ?? 0;
+        timerEl.textContent = secs > 0 ? `${secs}s` : "Sold!";
+        timerEl.classList.toggle("low", secs > 0 && secs <= 10);
+
+        const bidEl = document.getElementById("current-bid");
+        if (state.current_leader_name) {
+          bidEl.textContent = `Current bid: $${(state.current_high_bid || 0).toLocaleString()} by ${escapeHtml(state.current_leader_name)}`;
+        } else {
+          bidEl.textContent = `Starting bid: $${(state.current_high_bid || 0).toLocaleString()}`;
+        }
+
+        const hostBid = document.getElementById("host-bid");
+        if (HOST_PLAYER_ID) {
+          show(hostBid);
+          const budget = state.my_budget ?? 0;
+          const minBid = state.current_leader_name ? (state.current_high_bid || 0) + 1 : 20;
+          const bidKey = `${state.current_round}-${state.current_high_bid || 0}`;
+          const shouldResetBid = lastHostBidKey !== bidKey;
+          if (shouldResetBid) lastHostBidKey = bidKey;
+          const bankrollEl = document.getElementById("host-bankroll");
+          bankrollEl.textContent = state.my_budget != null ? `$${state.my_budget}` : "—";
+          bankrollEl.dataset.budget = String(budget);
+          const hostBidInput = document.getElementById("host-bid-amount");
+          const hostBidSlider = document.getElementById("host-bid-slider");
+          const maxBid = Math.max(minBid, budget);
+          hostBidInput.min = String(minBid);
+          hostBidSlider.min = String(minBid);
+          hostBidSlider.max = String(maxBid);
+          hostBidSlider.step = "1";
+          if (shouldResetBid) {
+            const suggestedBid = Math.min(Math.max(minBid, (state.current_high_bid || 0) + 5), budget);
+            hostBidInput.value = String(suggestedBid);
+            hostBidSlider.value = String(suggestedBid);
+          } else {
+            const current = parseInt(hostBidInput.value, 10);
+            if (!isNaN(current)) {
+              const clamped = Math.min(Math.max(current, minBid), maxBid);
+              if (clamped !== current) {
+                hostBidInput.value = String(clamped);
+                hostBidSlider.value = String(clamped);
+              }
+            }
+          }
+        } else {
+          hide(hostBid);
+        }
+        hide(document.getElementById("btn-next"));
+      } else if (state.phase === "reveal") {
+        hide(lobby); hide(round); show(reveal); hide(voting); hide(ended);
+        document.getElementById("host-error").classList.add("hidden");
+        document.getElementById("reveal-item-name").textContent = state.resolved?.item_name || "";
+        document.getElementById("winner-text").textContent = state.resolved?.winner_name
+          ? `${state.resolved.winner_name} won!`
+          : "No one bid.";
+        show(document.getElementById("btn-next-round"));
+      } else if (state.phase === "voting") {
+        hide(lobby); hide(round); hide(reveal); show(voting); hide(ended);
+        document.getElementById("votes-count").textContent = state.votes_count || 0;
+        document.getElementById("players-count").textContent = state.players?.length || 0;
+        const voteList = document.getElementById("host-vote-list");
+        const voteSubmit = document.getElementById("host-btn-submit-vote");
+        const voteError = document.getElementById("host-vote-error");
+        if (HOST_PLAYER_ID) {
+          voteError?.classList.add("hidden");
+          const hasRankSelects = voteList?.querySelector(".rank-select");
+          if (!state.has_voted && state.players_to_rank?.length && !hasRankSelects) {
+            voteList.innerHTML = state.players_to_rank
+              .map((p, i) => `
+                <div class="field">
+                  <label>#${i + 1} (best)</label>
+                  <select data-rank="${i}" class="rank-select">
+                    <option value="">— Choose —</option>
+                    ${state.players_to_rank.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join("")}
+                  </select>
+                </div>
+              `).join("");
+            if (voteSubmit) voteSubmit.classList.remove("hidden");
+          } else if (state.has_voted) {
+            voteList.innerHTML = '<p class="status">You voted! Waiting for others...</p>';
+            if (voteSubmit) voteSubmit.classList.add("hidden");
+          }
+        }
+      } else if (state.phase === "ended") {
+        hide(lobby); hide(round); hide(reveal); hide(voting); show(ended);
+        const lb = document.getElementById("leaderboard");
+        if (state.final_standings?.length) {
+          lb.innerHTML = state.final_standings
+            .map((s, i) => `<li class="rank-${i + 1}">${s.rank}. ${escapeHtml(s.name)}</li>`)
+            .join("");
+        }
+        const myColl = state.my_collection || [];
+        document.getElementById("my-collection").innerHTML = myColl.length
+          ? myColl.map(it => `<li>${escapeHtml(it.name)}</li>`).join("")
+          : "<li>No items won</li>";
+      }
+
+      if (state.phase !== "lobby") {
+        document.getElementById("host-my-bankroll").textContent = state.my_budget != null ? `$${state.my_budget}` : "—";
+        const hostStandings = document.getElementById("host-standings");
+        const hostStandingsTitle = document.getElementById("host-standings-title");
+        if (state.phase === "ended") {
+          hostStandingsTitle.textContent = "Final Rankings";
+        } else {
+          hostStandingsTitle.textContent = "Items Won";
+        }
+        if (state.leaderboard?.length || state.final_standings?.length) {
+          if (state.phase === "ended" && state.final_standings?.length) {
+            hostStandings.innerHTML = state.final_standings
+              .map(s => `<li>${s.rank}. ${escapeHtml(s.name)}</li>`)
+              .join("");
+          } else {
+            hostStandings.innerHTML = state.leaderboard
+              .map((p, i) => {
+                const items = p.items_won != null ? ` — ${p.items_won} items` : "";
+                return `<li>${i + 1}. ${escapeHtml(p.name)}${items}</li>`;
+              })
+              .join("");
+          }
+        } else {
+          hostStandings.innerHTML = "";
+        }
+      }
+    }
+
+    const hostBidInput = document.getElementById("host-bid-amount");
+    const hostBidSlider = document.getElementById("host-bid-slider");
+    hostBidSlider?.addEventListener("input", () => {
+      hostBidInput.value = hostBidSlider.value;
+    });
+    hostBidInput?.addEventListener("input", () => {
+      const v = parseInt(hostBidInput.value, 10);
+      const min = parseInt(hostBidSlider.min, 10);
+      const max = parseInt(hostBidSlider.max, 10);
+      if (!isNaN(v)) hostBidSlider.value = String(Math.min(max, Math.max(min, v)));
+    });
+
+    document.getElementById("host-bid-submit").onclick = async () => {
+      if (!HOST_PLAYER_ID) return;
+      const errEl = document.getElementById("host-bid-error");
+      errEl.classList.add("hidden");
+      const amount = parseInt(document.getElementById("host-bid-amount").value, 10) || 0;
+      const minBid = parseInt(document.getElementById("host-bid-amount").min || "20", 10) || 20;
+      const budget = parseInt(document.getElementById("host-bankroll")?.dataset.budget || "0", 10) || 0;
+
+      if (amount < minBid) {
+        errEl.textContent = `Bid must be at least $${minBid.toLocaleString()}.`;
+        errEl.classList.remove("hidden");
+        return;
+      }
+      if (amount > budget) {
+        errEl.textContent = `You only have $${budget.toLocaleString()}.`;
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      const r = await fetch(`${API}/bid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_id: HOST_PLAYER_ID, amount }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok) poll();
+      else {
+        errEl.textContent = data.error || "Something went wrong.";
+        errEl.classList.remove("hidden");
+      }
+    };
+
+    document.getElementById("btn-start").onclick = async () => {
+      const errEl = document.getElementById("lobby-error");
+      errEl.classList.add("hidden");
+      try {
+        const r = await fetch(`${API}/advance`, { method: "POST" });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          errEl.textContent = data.error || "Could not start game";
+          errEl.classList.remove("hidden");
+          return;
+        }
+      } catch (e) {
+        errEl.textContent = "Network error — try again";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      poll();
+    };
+
+    const nextRoundHandler = async () => {
+      const errEl = document.getElementById("host-error");
+      if (errEl) errEl.classList.add("hidden");
+      try {
+        const r = await fetch(`${API}/advance`, { method: "POST" });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          if (errEl) {
+            errEl.textContent = data.error || "Could not advance";
+            errEl.classList.remove("hidden");
+          }
+          return;
+        }
+      } catch (e) {
+        if (errEl) {
+          errEl.textContent = "Network error — try again";
+          errEl.classList.remove("hidden");
+        }
+        return;
+      }
+      poll();
+    };
+    const btnNext = document.getElementById("btn-next");
+    const btnNextRound = document.getElementById("btn-next-round");
+    if (btnNext) btnNext.onclick = nextRoundHandler;
+    if (btnNextRound) btnNextRound.onclick = nextRoundHandler;
+
+    document.getElementById("host-btn-submit-vote")?.addEventListener("click", async () => {
+      if (!HOST_PLAYER_ID) return;
+      const selects = document.querySelectorAll("#host-vote-list .rank-select");
+      const rankings = [];
+      const used = new Set();
+      let valid = true;
+      for (const s of selects) {
+        const v = s.value;
+        if (!v) { valid = false; break; }
+        if (used.has(v)) { valid = false; break; }
+        used.add(v);
+        rankings.push(v);
+      }
+      const errEl = document.getElementById("host-vote-error");
+      if (errEl) errEl.classList.add("hidden");
+      if (!valid || rankings.length !== selects.length) {
+        if (errEl) {
+          errEl.textContent = "Rank each player exactly once (no duplicates).";
+          errEl.classList.remove("hidden");
+        }
+        return;
+      }
+      const r = await fetch(`${API}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_id: HOST_PLAYER_ID, rankings }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok) poll();
+      else if (errEl) {
+        errEl.textContent = data.error || "Something went wrong.";
+        errEl.classList.remove("hidden");
+      }
+    });
+
+    function poll() {
+      fetchState().then(render);
+    }
+
+    setInterval(poll, 1500);
+    poll();
+  </script>
+</body>
+</html>

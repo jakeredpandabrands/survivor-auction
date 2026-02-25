@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Game — Survivor Auction</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Survivor Auction</h1>
+      <p class="tagline">Outwit, outbid, outlast</p>
+    </header>
+
+    <section class="card">
+      <form method="POST">
+        <div class="field">
+          <label for="name">Your name</label>
+          <input type="text" id="name" name="name" placeholder="Enter your name" required autocomplete="off">
+        </div>
+        <p class="hint">{{ players }}/8 players in lobby</p>
+        <button type="submit" class="btn-primary">Join Game</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

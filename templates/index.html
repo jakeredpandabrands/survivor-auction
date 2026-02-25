@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Survivor Auction</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Survivor Auction</h1>
+      <p class="tagline">Outwit, outbid, outlast</p>
+    </header>
+
+    <section class="card">
+      <h2>Create Game</h2>
+      <form method="POST" action="{{ url_for('game_create') }}">
+        <div class="field">
+          <label for="game_code">Game code</label>
+          <input type="text" id="game_code" name="game_code" placeholder="e.g. PARTY1" 
+                 maxlength="6" pattern="[A-Za-z0-9]{4,6}" 
+                 title="4–6 letters or numbers" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="host_name">Your name</label>
+          <input type="text" id="host_name" name="host_name" placeholder="Host" autocomplete="off">
+        </div>
+        {% if create_error %}
+        <p class="error">{{ create_error }}</p>
+        {% endif %}
+        <button type="submit" class="btn-primary">Create Game</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Join Game</h2>
+      <form method="POST" action="{{ url_for('game_join') }}">
+        <div class="field">
+          <label for="join_game_code">Game code</label>
+          <input type="text" id="join_game_code" name="game_code" placeholder="Enter the code" 
+                 maxlength="6" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="player_name">Your name</label>
+          <input type="text" id="player_name" name="player_name" placeholder="Your name" autocomplete="off">
+        </div>
+        {% if join_error %}
+        <p class="error">{{ join_error }}</p>
+        {% endif %}
+        <button type="submit" class="btn-primary">Join Game</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
