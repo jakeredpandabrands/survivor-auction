@@ -214,18 +214,30 @@ def public_state(g: dict, player_id: str | None = None) -> dict:
     """Build state for client."""
     players = [{"id": p["id"], "name": p["name"]} for p in g["players"]]
 
-    # Leaderboard: items won count (or during voting/ended: Borda standings)
+    # Leaderboard: items won count + actual items (all players can see all hauls)
     if g["phase"] in ("voting", "ended") and g.get("final_standings"):
         leaderboard = [
-            {"id": s["id"], "name": s["name"], "rank": s["rank"], "score": s["score"]}
+            {
+                "id": s["id"],
+                "name": s["name"],
+                "rank": s["rank"],
+                "score": s["score"],
+                "items_won": len(g["collections"][s["id"]]),
+                "items": list(g["collections"][s["id"]]),
+            }
             for s in g["final_standings"]
         ]
     else:
         leaderboard = []
         for p in g["players"]:
             pid = p["id"]
-            items_count = len(g["collections"][pid])
-            leaderboard.append({"id": pid, "name": p["name"], "items_won": items_count})
+            items = g["collections"][pid]
+            leaderboard.append({
+                "id": pid,
+                "name": p["name"],
+                "items_won": len(items),
+                "items": list(items),
+            })
         leaderboard.sort(key=lambda x: x["items_won"], reverse=True)
 
     current_item = None
@@ -259,10 +271,13 @@ def public_state(g: dict, player_id: str | None = None) -> dict:
         leader_p = next((p for p in g["players"] if p["id"] == g["current_leader"]), None)
         current_leader_name = leader_p["name"] if leader_p else None
 
-    # For voting: list of other players to rank
+    # For voting: list of other players to rank (with their hauls for informed voting)
     players_to_rank = []
     if g["phase"] == "voting" and player_id:
-        players_to_rank = [{"id": p["id"], "name": p["name"]} for p in g["players"] if p["id"] != player_id]
+        players_to_rank = [
+            {"id": p["id"], "name": p["name"], "items": list(g["collections"][p["id"]])}
+            for p in g["players"] if p["id"] != player_id
+        ]
     has_voted = player_id in g["votes"] if player_id else False
     votes_count = len(g["votes"])
 

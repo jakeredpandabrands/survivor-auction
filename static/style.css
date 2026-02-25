@@ -436,6 +436,50 @@ ul {
   }
 }
 
+/* Player hauls (voting & ended phases) */
+.hauls-reference {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.hauls-reference h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.75rem;
+}
+
+.hauls-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.hauls-list li {
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hauls-list li:last-child {
+  border-bottom: none;
+}
+
+.player-haul {
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.player-haul:last-child {
+  border-bottom: none;
+}
+
 /* Hidden */
 .hidden {
   display: none !important;

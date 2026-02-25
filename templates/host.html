@@ -74,8 +74,8 @@
       <div id="ended" class="card hidden">
         <h2>Game Over!</h2>
         <ul id="leaderboard"></ul>
-        <h3>Your haul</h3>
-        <ul id="my-collection"></ul>
+        <h3>Everyone's hauls</h3>
+        <div id="host-all-hauls"></div>
       </div>
     </div>
     <aside class="leaderboard-mini">
@@ -200,8 +200,16 @@
         if (HOST_PLAYER_ID) {
           voteError?.classList.add("hidden");
           const hasRankSelects = voteList?.querySelector(".rank-select");
+          const haulsHtml = (state.leaderboard || []).length
+            ? `<div class="hauls-reference"><h4>Player hauls</h4><ul class="hauls-list">${(state.leaderboard || [])
+                .map(p => {
+                  const items = (p.items || []).map(it => escapeHtml(it.name)).join(", ") || "—";
+                  return `<li><strong>${escapeHtml(p.name)}:</strong> ${items}</li>`;
+                })
+                .join("")}</ul></div>`
+            : "";
           if (!state.has_voted && state.players_to_rank?.length && !hasRankSelects) {
-            voteList.innerHTML = state.players_to_rank
+            voteList.innerHTML = haulsHtml + state.players_to_rank
               .map((p, i) => `
                 <div class="field">
                   <label>#${i + 1} (best)</label>
@@ -213,9 +221,18 @@
               `).join("");
             if (voteSubmit) voteSubmit.classList.remove("hidden");
           } else if (state.has_voted) {
-            voteList.innerHTML = '<p class="status">You voted! Waiting for others...</p>';
+            voteList.innerHTML = haulsHtml + '<p class="status">You voted! Waiting for others...</p>';
             if (voteSubmit) voteSubmit.classList.add("hidden");
+          } else if (haulsHtml) {
+            voteList.innerHTML = haulsHtml;
           }
+        } else if ((state.leaderboard || []).length) {
+          voteList.innerHTML = `<div class="hauls-reference"><h4>Player hauls</h4><ul class="hauls-list">${(state.leaderboard || [])
+            .map(p => {
+              const items = (p.items || []).map(it => escapeHtml(it.name)).join(", ") || "—";
+              return `<li><strong>${escapeHtml(p.name)}:</strong> ${items}</li>`;
+            })
+            .join("")}</ul></div><p class="status">As host, you're not playing — waiting for players to vote.</p>`;
         }
       } else if (state.phase === "ended") {
         hide(lobby); hide(round); hide(reveal); hide(voting); show(ended);
@@ -225,10 +242,14 @@
             .map((s, i) => `<li class="rank-${i + 1}">${s.rank}. ${escapeHtml(s.name)}</li>`)
             .join("");
         }
-        const myColl = state.my_collection || [];
-        document.getElementById("my-collection").innerHTML = myColl.length
-          ? myColl.map(it => `<li>${escapeHtml(it.name)}</li>`).join("")
-          : "<li>No items won</li>";
+        const allHauls = document.getElementById("host-all-hauls");
+        const haulsData = state.final_standings || state.leaderboard || [];
+        allHauls.innerHTML = haulsData.length
+          ? haulsData.map(p => {
+              const items = (p.items || []).map(it => escapeHtml(it.name));
+              return `<div class="player-haul"><strong>${escapeHtml(p.name)}:</strong> ${items.length ? items.join(", ") : "No items won"}</div>`;
+            }).join("")
+          : "";
       }
 
       if (state.phase !== "lobby") {
@@ -241,18 +262,17 @@
           hostStandingsTitle.textContent = "Items Won";
         }
         if (state.leaderboard?.length || state.final_standings?.length) {
-          if (state.phase === "ended" && state.final_standings?.length) {
-            hostStandings.innerHTML = state.final_standings
-              .map(s => `<li>${s.rank}. ${escapeHtml(s.name)}</li>`)
-              .join("");
-          } else {
-            hostStandings.innerHTML = state.leaderboard
-              .map((p, i) => {
-                const items = p.items_won != null ? ` — ${p.items_won} items` : "";
-                return `<li>${i + 1}. ${escapeHtml(p.name)}${items}</li>`;
-              })
-              .join("");
-          }
+          const entries = state.phase === "ended" && state.final_standings?.length
+            ? state.final_standings : state.leaderboard;
+          const rankKey = state.phase === "ended" ? "rank" : null;
+          hostStandings.innerHTML = entries
+            .map((p, i) => {
+              const rank = rankKey ? p.rank : i + 1;
+              const itemsList = (p.items || []).map(it => escapeHtml(it.name)).join(", ");
+              const itemsTip = itemsList ? ` — ${itemsList}` : (p.items_won ? ` — ${p.items_won} items` : "");
+              return `<li><strong>${rank}. ${escapeHtml(p.name)}</strong>${itemsTip || ""}</li>`;
+            })
+            .join("");
         } else {
           hostStandings.innerHTML = "";
         }
