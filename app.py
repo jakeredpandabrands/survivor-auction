@@ -48,9 +48,33 @@ def player_id() -> str:
 
 
 def draw_items(count: int) -> list[dict]:
-    """Shuffle and draw N items from the mega-list. Items are {name} only."""
-    shuffled = random.sample(ALL_ITEMS, min(count, len(ALL_ITEMS)))
-    return [{"name": item["name"]} for item in shuffled]
+    """Draw N items with variety across value tiers (budget to luxury)."""
+    # Split items by value tier for balanced draws
+    budget = [i for i in ALL_ITEMS if (i.get("value") or 10) <= 5]   # $1-5
+    basic = [i for i in ALL_ITEMS if 6 <= (i.get("value") or 10) <= 15]  # $6-15
+    solid = [i for i in ALL_ITEMS if 16 <= (i.get("value") or 10) <= 30]  # $16-30
+    premium = [i for i in ALL_ITEMS if 31 <= (i.get("value") or 10) <= 50]  # $31-50
+    luxury = [i for i in ALL_ITEMS if (i.get("value") or 10) > 50]  # $50+
+
+    def sample_tier(tier: list, n: int) -> list:
+        return random.sample(tier, min(n, len(tier))) if tier else []
+
+    # Aim for ~25% budget, ~30% basic, ~25% solid, ~15% premium, ~5% luxury
+    n = min(count, len(ALL_ITEMS))
+    a, b, c, d, e = max(1, n // 4), max(1, n // 3), max(1, n // 4), max(1, n // 7), max(1, n // 20)
+    drawn = (
+        sample_tier(budget, a)
+        + sample_tier(basic, b)
+        + sample_tier(solid, c)
+        + sample_tier(premium, d)
+        + sample_tier(luxury, e)
+    )
+    # Fill any shortfall with random items, then shuffle
+    if len(drawn) < n:
+        remaining = [i for i in ALL_ITEMS if i not in drawn]
+        drawn.extend(random.sample(remaining, min(n - len(drawn), len(remaining))))
+    random.shuffle(drawn)
+    return [{"name": item["name"], "emoji": item.get("emoji", "📦")} for item in drawn[:n]]
 
 
 def pick_mystery_rounds(total: int) -> set[int]:
@@ -149,7 +173,7 @@ def resolve_round(g: dict) -> None:
     leader = g["current_leader"]
     if leader is not None and g["current_high_bid"] > 0:
         g["budgets"][leader] -= g["current_high_bid"]
-        g["collections"][leader].append({"name": item["name"]})
+        g["collections"][leader].append({"name": item["name"], "emoji": item.get("emoji", "📦")})
         g["winner"] = leader
     else:
         g["winner"] = None
@@ -248,6 +272,7 @@ def public_state(g: dict, player_id: str | None = None) -> dict:
         min_bid = g["current_high_bid"] + 1 if g["current_leader"] else STARTING_BID
         current_item = {
             "name": display_name,
+            "emoji": "❓" if is_mystery else item.get("emoji", "📦"),
             "is_mystery": is_mystery,
             "min_bid": min_bid,
         }
@@ -258,6 +283,7 @@ def public_state(g: dict, player_id: str | None = None) -> dict:
         winner = next((p for p in g["players"] if p["id"] == g["winner"]), None)
         resolved = {
             "item_name": g["resolved_item"]["name"],
+            "item_emoji": g["resolved_item"].get("emoji", "📦"),
             "winner_name": winner["name"] if winner else None,
         }
 

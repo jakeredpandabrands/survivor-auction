@@ -21,7 +21,10 @@
       <div id="play-phase" class="card hidden">
         <h2>Round <span id="round-num"></span><span id="rounds-range" class="rounds-range"></span></h2>
         <div class="item-card">
-          <span class="item-name" id="item-name"></span>
+          <div class="item-display">
+            <span class="item-emoji" id="item-emoji"></span>
+            <span class="item-name" id="item-name"></span>
+          </div>
           <p id="timer" class="timer"></p>
           <p id="current-bid" class="hint"></p>
         </div>
@@ -46,7 +49,10 @@
       <div id="reveal-phase" class="card hidden">
         <h2>Result</h2>
         <div class="reveal-card">
-          <span class="item-name" id="reveal-item-name"></span>
+          <div class="item-display">
+            <span class="item-emoji" id="reveal-item-emoji"></span>
+            <span class="item-name" id="reveal-item-name"></span>
+          </div>
           <p id="winner-text"></p>
         </div>
         <p class="status">Wait for host to start next round...</p>
@@ -65,6 +71,7 @@
         <ul id="leaderboard"></ul>
         <h3>Everyone's hauls</h3>
         <div id="all-hauls"></div>
+        <a href="/" class="btn-primary play-again-btn">Want to play again?</a>
       </div>
 
       <aside class="leaderboard-mini">
@@ -121,8 +128,8 @@
         standings.innerHTML = entries
           .map((p, i) => {
             const rank = rankKey ? p.rank : i + 1;
-            const itemsList = (p.items || []).map(it => escapeHtml(it.name)).join(", ");
-            const itemsTip = itemsList ? ` — ${itemsList}` : (p.items_won ? ` — ${p.items_won} items` : "");
+            const itemsStr = (p.items || []).map(it => `${it.emoji || "📦"} ${escapeHtml(it.name)}`).join(" • ");
+            const itemsTip = itemsStr ? ` — ${itemsStr}` : (p.items_won ? ` — ${p.items_won} items` : "");
             return `<li><strong>${rank}. ${escapeHtml(p.name)}</strong>${itemsTip || ""}</li>`;
           })
           .join("");
@@ -145,6 +152,7 @@
         const maxR = state.rounds_max ?? 0;
         document.getElementById("round-num").textContent = state.current_round + 1;
         document.getElementById("rounds-range").textContent = minR && maxR ? ` (of ${minR}–${maxR})` : "";
+        document.getElementById("item-emoji").textContent = state.current_item?.emoji || "📦";
         document.getElementById("item-name").textContent = state.current_item?.name || "—";
 
         const timerEl = document.getElementById("timer");
@@ -192,6 +200,7 @@
         hide(waiting); hide(playPhase); show(revealPhase); hide(votingPhase); hide(endedPhase);
         pollInterval = 2500;
 
+        document.getElementById("reveal-item-emoji").textContent = state.resolved?.item_emoji || "📦";
         document.getElementById("reveal-item-name").textContent = state.resolved?.item_name || "";
         document.getElementById("winner-text").textContent = state.resolved?.winner_name
           ? `${state.resolved.winner_name} won!`
@@ -204,10 +213,10 @@
         const list = document.getElementById("ranking-list");
         const hasRankSelects = list.querySelector(".rank-select");
         const haulsHtml = (state.leaderboard || []).length
-          ? `<div class="hauls-reference"><h4>Player hauls</h4><ul class="hauls-list">${(state.leaderboard || [])
+          ? `<div class="hauls-reference"><h4>Player hauls — vote with full context</h4><ul class="hauls-list">${(state.leaderboard || [])
               .map(p => {
-                const items = (p.items || []).map(it => escapeHtml(it.name)).join(", ") || "—";
-                return `<li><strong>${escapeHtml(p.name)}:</strong> ${items}</li>`;
+                const items = (p.items || []).map(it => `<span class="item-chip">${it.emoji || "📦"} ${escapeHtml(it.name)}</span>`).join(" ");
+                return `<li><strong>${escapeHtml(p.name)}:</strong> ${items || "—"}</li>`;
               })
               .join("")}</ul></div>`
           : "";
@@ -244,8 +253,8 @@
         const haulsData = state.final_standings || state.leaderboard || [];
         allHauls.innerHTML = haulsData.length
           ? haulsData.map(p => {
-              const items = (p.items || []).map(it => escapeHtml(it.name));
-              return `<div class="player-haul"><strong>${escapeHtml(p.name)}:</strong> ${items.length ? items.join(", ") : "No items won"}</div>`;
+              const items = (p.items || []).map(it => `<span class="item-chip">${it.emoji || "📦"} ${escapeHtml(it.name)}</span>`);
+              return `<div class="player-haul"><strong>${escapeHtml(p.name)}:</strong> ${items.length ? items.join(" ") : "No items won"}</div>`;
             }).join("")
           : "";
       }

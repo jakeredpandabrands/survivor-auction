@@ -93,9 +93,32 @@ h1 {
   text-align: center;
 }
 
+.item-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.item-emoji {
+  font-size: 3rem;
+  line-height: 1;
+}
+
 .item-name {
   font-size: 1.25rem;
   font-weight: 600;
+}
+
+.item-chip {
+  display: inline-block;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  margin: 0.15rem 0.15rem 0.15rem 0;
 }
 
 .min-bid {
@@ -297,6 +320,14 @@ select {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+a.btn-primary,
+.play-again-btn {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+  margin-top: 1rem;
 }
 
 .btn-secondary {
