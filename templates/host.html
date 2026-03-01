@@ -232,9 +232,8 @@
           } else if (state.has_voted) {
             voteList.innerHTML = haulsHtml + '<p class="status">You voted! Waiting for others...</p>';
             if (voteSubmit) voteSubmit.classList.add("hidden");
-          } else if (haulsHtml) {
-            voteList.innerHTML = haulsHtml;
           }
+          /* When form exists and user hasn't voted: don't touch list — preserve selections during polling */
         } else if ((state.leaderboard || []).length) {
           voteList.innerHTML = `<div class="hauls-reference"><h4>Player hauls — vote with full context</h4><ul class="hauls-list">${(state.leaderboard || [])
             .map(p => {

@@ -56,6 +56,10 @@ def draw_items(count: int) -> list[dict]:
     premium = [i for i in ALL_ITEMS if 31 <= (i.get("value") or 10) <= 50]  # $31-50
     luxury = [i for i in ALL_ITEMS if (i.get("value") or 10) > 50]  # $50+
 
+    SHELLFISH = {"lobster", "crab", "shrimp", "oyster", "clam", "scallop", "seafood tower"}
+    def is_shellfish(item: dict) -> bool:
+        return any(kw in (item.get("name") or "").lower() for kw in SHELLFISH)
+
     def sample_tier(tier: list, n: int) -> list:
         return random.sample(tier, min(n, len(tier))) if tier else []
 
@@ -69,6 +73,16 @@ def draw_items(count: int) -> list[dict]:
         + sample_tier(premium, d)
         + sample_tier(luxury, e)
     )
+    # Limit shellfish: at most 2 per game to avoid lobster/crab overload
+    shellfish_count = sum(1 for x in drawn if is_shellfish(x))
+    while shellfish_count > 2:
+        shellfish_idx = next(i for i, x in enumerate(drawn) if is_shellfish(x))
+        non_shellfish = [i for i in ALL_ITEMS if not is_shellfish(i) and i not in drawn]
+        if non_shellfish:
+            drawn[shellfish_idx] = random.choice(non_shellfish)
+            shellfish_count -= 1
+        else:
+            break
     # Fill any shortfall with random items, then shuffle
     if len(drawn) < n:
         remaining = [i for i in ALL_ITEMS if i not in drawn]

@@ -235,9 +235,8 @@
         } else if (state.has_voted) {
           list.innerHTML = haulsHtml + '<p class="status">You voted! Waiting for others...</p>';
           document.getElementById("btn-submit-vote").classList.add("hidden");
-        } else if (haulsHtml) {
-          list.innerHTML = haulsHtml;
         }
+        /* When form exists and user hasn't voted: don't touch list — preserve selections during polling */
       } else if (state.phase === "ended") {
         hide(waiting); hide(playPhase); hide(revealPhase); hide(votingPhase); show(endedPhase);
         pollInterval = 5000;
