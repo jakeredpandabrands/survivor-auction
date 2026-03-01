@@ -12,8 +12,8 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 # Constants
 STARTING_BUDGET = 1000
 STARTING_BID = 20
-BID_TIMER_SECONDS = 30
-BID_EXTEND_SECONDS = 30  # extend timer by this much on new bid
+BID_TIMER_SECONDS = 12
+BID_EXTEND_SECONDS = 12  # extend timer by this much on new bid
 MIN_PLAYERS = 2
 MAX_PLAYERS = 8
 

@@ -26,7 +26,7 @@ Open http://localhost:5001 (or http://YOUR_IP:5001 for others on your WiFi).
 
 - **Starting budget:** $1,000
 - **Starting bid per item:** $20
-- **Timer:** 30 seconds per item; new bid extends by 30 seconds
+- **Timer:** 12 seconds per item; new bid extends by 12 seconds
 - **No pass button:** To sit out, simply don't bid
 - **Win condition:** Peers rank your auction performance; highest Borda score wins
 
@@ -44,3 +44,5 @@ Open http://localhost:5001 (or http://YOUR_IP:5001 for others on your WiFi).
 ## Future Enhancements
 
 **Blind auction mode:** Alternative game mode where each player submits one secret bid per item. No one sees others' bids until the reveal. Highest bid wins. Simpler technically (no timer, no real-time bidding) but different from the TV show. Could be a host-selectable option in a future release.
+
+**Everyone-elects-done:** Optional mode where players can signal they're done bidding; when everyone elects "done," the round ends immediately instead of waiting for the timer. Good for faster-paced games.
